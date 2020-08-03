@@ -1,5 +1,6 @@
 package team.tsinghua.ipsc.free_gesture;
 
+
 import android.Manifest;
 import android.annotation.SuppressLint;
 
@@ -9,6 +10,7 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.net.Uri;
+import android.os.Handler;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -36,18 +38,23 @@ import androidx.viewpager.widget.ViewPager;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -56,36 +63,60 @@ import java.util.zip.ZipInputStream;
 
 
 public class MainActivity extends AppCompatActivity {
-    private int exp_time = 180;  // seconds
-    private VideoView videoview; // demo video
-    private VideoView trigger; // data collecting area
-    private TextView timer_view;
-    private TextView mode_view;
+    private int exp_time = 300, taskTime = 3;  // seconds
+    private final int roundTotalNum = 25;
+    private final int taskNum = 6;
+    private int countIndex = 0;
+    private VideoView videoView; // demo video
+    private TextView trigger; // data collecting area
+    private TextView timerView, counterView;
+    private TextView modeView;
     private Uri uri;
     private PopupWindow popup_window;
     private String exp_info;
     private int exp_info_int;
-    private String mode;
+    private int[] modeNums, modeNums2;
+    private int modeNum;
     private String current_date;
     private String device_sc;
     private String m_groupNumber;
     private String m_sendAddress;
     private boolean m_isCollecting;
+    private String[] args;
+    private String numOft;
 
     private String src_file_dir_str;
-    private String dst_file_dir_str;
+    private String dst_file_dir_str, dst_file_dir_str2;
     private int currTabPos; // position # of the tab
     private DatagramSocket m_udpClient;
 
     private static String[] PERMISSIONS_STORAGE = {
-        Manifest.permission.READ_EXTERNAL_STORAGE,
-        Manifest.permission.WRITE_EXTERNAL_STORAGE
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
     //请求状态码
     private static int REQUEST_PERMISSION_CODE = 1;
 
-    private CountDownTimer m_countDownTimer;
+    private CountDownTimer m_countDownTimer, m_countDownTimer2;
 
+    private OutputStream os = null;
+    private BufferedWriter writer = null;
+    public void write(File file, String txt){
+        try {
+            writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file, false), StandardCharsets.UTF_8));
+            writer.write(txt);
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (writer != null) {
+                    writer.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
     public static void unzip(File src_dir, File dst_dir) throws IOException {
         ZipInputStream zis = new ZipInputStream(new BufferedInputStream(new FileInputStream(src_dir)));
@@ -217,6 +248,57 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    public static int[] indexGenerator(int min, int max, int n){
+        if (n > (max - min + 1) || max < min) {
+            return null;
+        }
+        int[] result = new int[n];
+        int count = 0;
+        while(count < n) {
+            int num = (int) (Math.random() * (max - min)) + min;
+            boolean flag = true;
+
+            for (int j = 0; j < n; j++) {
+
+                if (num == result[j]) {
+                    flag = false;
+                    break;
+
+                }
+            }
+
+            if(flag){
+                result[count] = num;
+                count++;
+            }
+            if (count == n-1){
+                break;
+            }
+        }
+        return result;
+    }
+
+
+    public static String[] readSettings(String filePath){
+        String line;
+        String[] args = new String[20];
+        int i;
+        try{
+            BufferedReader in=new BufferedReader(new FileReader(filePath));
+            line=in.readLine();
+            for (i=0;i<args.length;i++){
+                if (line != null){
+                    args[i] = line;
+                    line = in.readLine();
+                }
+            }
+            in.close();
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+        return args;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -226,6 +308,9 @@ public class MainActivity extends AppCompatActivity {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, PERMISSIONS_STORAGE, REQUEST_PERMISSION_CODE);
         }
+
+        args = readSettings("/storage/emulated/0/gathered_data2/settings.txt");
+        numOft = args[0];
 
         SectionsPagerAdapter sectionsPagerAdapter = new SectionsPagerAdapter(this, getSupportFragmentManager());
 
@@ -242,52 +327,18 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 // prepare video
-                currTabPos = tabs.getSelectedTabPosition();
-
-                if (currTabPos == 0) {
-                    timer_view = findViewById(R.id.zoom_in_timer);
-                    videoview = (VideoView) findViewById(R.id.ZoomInVideo);
-                    trigger = (VideoView) findViewById(R.id.ZoomInCollection);
-                    mode_view = findViewById(R.id.zoom_in_mode);
-                    uri = Uri.parse("android.resource://"+getPackageName()+"/"+R.raw.zoom_in);
-                    mode = "zoom_in/";
-                } else if (currTabPos == 1) {
-                    timer_view = findViewById(R.id.zoom_out_timer);
-                    videoview = (VideoView) findViewById(R.id.ZoomOutVideo);
-                    trigger = (VideoView) findViewById(R.id.ZoomOutCollection);
-                    mode_view = findViewById(R.id.zoom_out_mode);
-                    uri = Uri.parse("android.resource://"+getPackageName()+"/"+R.raw.zoom_out);
-                    mode = "zoom_out/";
-                } else if (currTabPos == 2) {
-                    timer_view = findViewById(R.id.slide_lr_timer);
-                    videoview = (VideoView) findViewById(R.id.SlideLRVideo);
-                    trigger = (VideoView) findViewById(R.id.SlideLRCollection);
-                    mode_view = findViewById(R.id.slide_lr_mode);
-                    uri = Uri.parse("android.resource://"+getPackageName()+"/"+R.raw.slide_lr);
-                    mode = "slide_lr/";
-                } else if (currTabPos == 3) {
-                    timer_view = findViewById(R.id.slide_ud_timer);
-                    videoview = (VideoView) findViewById(R.id.SlideUDVideo);
-                    trigger = (VideoView) findViewById(R.id.SlideUDCollection);
-                    mode_view = findViewById(R.id.slide_ud_mode);
-                    uri = Uri.parse("android.resource://"+getPackageName()+"/"+R.raw.slide_ud);
-                    mode = "slide_ud/";
-                } else if (currTabPos == 4) {
-                    timer_view = findViewById(R.id.touch_timer);
-                    videoview = (VideoView) findViewById(R.id.TouchVideo);
-                    trigger = (VideoView) findViewById(R.id.TouchCollection);
-                    mode_view = findViewById(R.id.touch_mode);
-                    uri = Uri.parse("android.resource://"+getPackageName()+"/"+R.raw.touch);
-                    mode = "touch/";
-                }
+                timerView = findViewById(R.id.expTimer);
+                videoView = findViewById(R.id.expVideo);
+                trigger = findViewById(R.id.expDataCollectionArea);
+                modeView = findViewById(R.id.expMode);
+                counterView = findViewById(R.id.counter);
 
                 // change button state
                 fab.setEnabled(false);
                 fab.setVisibility(View.INVISIBLE);
-
-
-                timer_view.setTextColor(Color.BLACK);
-                mode_view.setTextColor(Color.BLACK);
+                timerView.setTextColor(Color.BLACK);
+                modeView.setTextColor(Color.BLACK);
+                trigger.setBackgroundColor(Color.BLACK);
 
                 // pop_up_input
                 final CoordinatorLayout main_activity_layout = findViewById(R.id.main_activity_layout);
@@ -306,30 +357,30 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onClick(View v) {
                         popup_window.dismiss();
+
+                        /***********************/
+
+                        @SuppressLint("InflateParams") final View expView = layoutInflater.inflate(R.layout.exp_layout, null);
                         EditText exp_info_input = pop_up_view.findViewById(R.id.exp_info_input);
                         exp_info = exp_info_input.getText().toString();
                         exp_info_int = Integer.parseInt(exp_info);
                         Log.d("exp_info", exp_info);
-
                         viewPager.setBackgroundColor(Color.WHITE);
 
-                        // play and loop video
-                        videoview.setVideoURI(uri);
-                        videoview.start();
-                        videoview.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                        uri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.zoom_in);
+                        videoView.setVideoURI(uri);
+                        videoView.start();
+                        videoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
                             @Override
                             public void onPrepared(MediaPlayer mp) {
                                 mp.setLooping(true);
                             }
                         });
 
-                        if (currTabPos == 0 || currTabPos == 1 || currTabPos == 4) {
-                            timer_view.setVisibility(View.VISIBLE);
-                        }
-
-                        timer_view.setBackgroundColor(0x00000);
-                        mode_view.setBackgroundColor(0x00000);
-
+                        timerView.setVisibility(View.VISIBLE);
+                        timerView.setBackgroundColor(0x00000);
+                        modeView.setBackgroundColor(0x00000);
+                        counterView.setBackgroundColor(0x00000);
                         // init udp socket
                         try {
                             m_udpClient = new DatagramSocket();
@@ -343,9 +394,10 @@ public class MainActivity extends AppCompatActivity {
 
                         final String src_folder_str = "/storage/emulated/0/com.huawei.lcagent/";
                         final String temp_folder_str = "/storage/emulated/0/raw_unzipped/";
-                        final String dst_folder_str = "/storage/emulated/0/gathered_data/" + mode;
+                        final String dst_folder_str = "/storage/emulated/0/gathered_data2/";
+
                         File dst_folder = new File(dst_folder_str);
-                        if (!dst_folder.exists()){
+                        if (!dst_folder.exists()) {
                             dst_folder.mkdir();
                         }
                         device_sc = new File("/storage/emulated/0/dev_info/").list()[0];
@@ -361,10 +413,85 @@ public class MainActivity extends AppCompatActivity {
                             dst_file_folder_dir.mkdir();
                         }
 
+                        final String mode_seq = dst_file_folder_dir_str + "_seq";
+                        Log.d("mode seq", mode_seq);
+                        final File mode_seq_file = new File(mode_seq);
+                        if (!mode_seq_file.exists()) mode_seq_file.mkdir();
 
-                        if(currTabPos <= 4){
+
+                        if (modeNum < 6) {
+                            if (mode_seq_file.list().length == 0) {
+                                dst_file_dir_str2 = mode_seq + "/" + current_date + "_" + exp_info + "_01.txt";
+
+                                m_groupNumber = "1";
+                            } else {
+                                String[] file_list = new File(mode_seq).list();
+                                int this_num = 0;
+                                String this_name;
+                                for (int i = 0; i < 10; i++) {
+                                    String file_num = "0" + (i + 1);
+                                    this_num = i + 1;
+                                    boolean find_file = false;
+                                    for (int j = 0; j < file_list.length; j++) {
+                                        String file_name = file_list[j].split("_")[2].split("\\.")[0];
+                                        if (file_name.equals(file_num)) {
+                                            find_file = true;
+                                            break;
+                                        }
+                                    }
+                                    if (!find_file)
+                                        break;
+                                }
+                                /***********************/
+                                if (this_num <= 9) {
+                                    this_name = "0" + this_num;
+                                } else if(this_num <= Integer.parseInt(numOft)){
+                                    this_name = String.valueOf(this_num);
+                                } else{
+                                    this_name = numOft;
+                                }
+                                m_groupNumber = this_name;
+                                dst_file_dir_str2 = mode_seq + "/" + current_date + "_" + exp_info + "_" + this_name + ".txt";
+                            }
+                        } else {
+                            if (dst_file_folder_dir.list().length == 0) {
+                                dst_file_dir_str2 = mode_seq + "/" + current_date + "_" + exp_info + "_01";
+                                m_groupNumber = "1";
+                            } else {
+                                String[] file_list = new File(mode_seq).list();
+                                int this_num = 0;
+                                String this_name;
+                                for (int i = 0; i < 10; i++) {
+                                    String file_num = "0" + (i + 1);
+                                    this_num = i + 1;
+                                    boolean find_file = false;
+                                    for (int j = 0; j < file_list.length; j++) {
+                                        String file_name = file_list[j].split("_")[2];
+                                        if (file_name.equals(file_num)) {
+                                            find_file = true;
+                                            break;
+                                        }
+                                    }
+                                    if (!find_file)
+                                        break;
+                                }
+                                if (this_num <= 9) {
+                                    this_name = "0" + this_num;
+                                } else if(this_num <= Integer.parseInt(numOft)){
+                                    this_name = String.valueOf(this_num);
+                                } else{
+                                    this_name = numOft;
+                                }
+                                m_groupNumber = this_name;
+                                dst_file_dir_str2 = mode_seq + "/" + current_date + "_" + exp_info + "_" + this_name;
+                            }
+                        }
+
+
+                        if (modeNum < 6) {
                             if (dst_file_folder_dir.list().length == 0) {
                                 dst_file_dir_str = dst_file_folder_dir_str + "/" + current_date + "_" + exp_info + "_01.thplog";
+
                                 m_groupNumber = "1";
                             } else {
                                 String[] file_list = new File(dst_file_folder_dir_str).list();
@@ -387,14 +514,15 @@ public class MainActivity extends AppCompatActivity {
                                 /***********************/
                                 if (this_num <= 9) {
                                     this_name = "0" + this_num;
-                                } else {
-                                    this_name = "10";
+                                } else if(this_num <= Integer.parseInt(numOft)){
+                                    this_name = String.valueOf(this_num);
+                                } else{
+                                    this_name = numOft;
                                 }
                                 m_groupNumber = this_name;
                                 dst_file_dir_str = dst_file_folder_dir_str + "/" + current_date + "_" + exp_info + "_" + this_name + ".thplog";
                             }
-                        }
-                        else{
+                        } else {
                             if (dst_file_folder_dir.list().length == 0) {
                                 dst_file_dir_str = dst_file_folder_dir_str + "/" + current_date + "_" + exp_info + "_01";
                                 m_groupNumber = "1";
@@ -418,171 +546,216 @@ public class MainActivity extends AppCompatActivity {
                                 }
                                 if (this_num <= 9) {
                                     this_name = "0" + this_num;
-                                } else {
-                                    this_name = "10";
+                                } else if(this_num <= Integer.parseInt(numOft)){
+                                    this_name = String.valueOf(this_num);
+                                } else{
+                                    this_name = numOft;
                                 }
                                 m_groupNumber = this_name;
                                 dst_file_dir_str = dst_file_folder_dir_str + "/" + current_date + "_" + exp_info + "_" + this_name;
                             }
                         }
 
-                        m_countDownTimer = new CountDownTimer(exp_time*1000, 1000) {
-                            public void onTick(long millisUntilFinished) {
-                                timer_view.setText("Remain: " + millisUntilFinished / 1000 + "s");
+
+                        modeNums = indexGenerator(0, 6, taskNum);
+                        modeNums2 = new int[roundTotalNum*modeNums.length];
+                        for (int k=0;k<roundTotalNum;k++){
+                            System.arraycopy(modeNums, 0, modeNums2, 6 * k, modeNums.length);
+                        }
+                        timerView.setVisibility(View.VISIBLE);
+                        timerView.setBackgroundColor(0x00000);
+                        counterView.setVisibility(View.VISIBLE);
+                        counterView.setBackgroundColor(0x00000);
+                        modeView.setBackgroundColor(0x00000);
+                        m_countDownTimer2 = new CountDownTimer(taskTime * 1000, 1000) {
+                            @Override
+                            public void onTick(long l) {
+
+                                modeNum = modeNums2[countIndex];
+                                if (modeNum == 0){
+                                    uri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.zoom_in);
+                                    modeView.setText("当前模式：双指缩小");
+
+                                } else if (modeNum == 1){
+                                    uri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.zoom_out);
+                                    modeView.setText("当前模式：双指放大");
+
+                                } else if (modeNum == 2){
+                                    uri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.slide_left);
+                                    modeView.setText("当前模式：单指向左");
+
+                                } else if (modeNum == 3){
+                                    uri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.slide_right);
+                                    modeView.setText("当前模式：单指向右");
+
+                                } else if (modeNum == 4){
+                                    uri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.slide_up);
+                                    modeView.setText("当前模式：单指向上");
+
+                                } else if (modeNum == 5){
+                                    uri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.slide_down);
+                                    modeView.setText("当前模式：单指向下");
+
+                                }
+                                // play and loop video
+                                videoView.setVideoURI(uri);
+                                videoView.start();
+                                videoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                                    @Override
+                                    public void onPrepared(MediaPlayer mp) {
+                                        mp.setLooping(true);
+                                    }
+                                });
+
+
+                                timerView.setText("剩余时间: " + l / 1000 + "秒");
+                                counterView.setText("已完成" + countIndex + "个模式，共" + roundTotalNum * taskNum + "个模式");
+
                             }
 
+                            @Override
                             public void onFinish() {
 
-                                SendCmd(1);
-                                viewPager.setBackgroundColor(Color.BLACK);
-                                m_isCollecting = false;
-                                timer_view.setTextColor(Color.WHITE);
-                                timer_view.setTextSize(18);
-                                timer_view.setText("切换到 My Application 删除后拷贝");
-                                // end video loop
-                                videoview.stopPlayback();
-                                videoview.setVisibility(View.GONE);
+                                if (countIndex < taskNum*roundTotalNum-1){
+                                    countIndex+=1;
+                                    this.start();
+                                }else{
+                                    Log.d(String.valueOf(countIndex), "index");
+                                    SendCmd(1);
+                                    viewPager.setBackgroundColor(Color.BLACK);
+                                    m_isCollecting = false;
+                                    trigger.setTextColor(Color.WHITE);
 
-                                // change file extractor button style
-                                final MaterialButton save_file_button = findViewById(R.id.save_file_button);
-                                save_file_button.setVisibility(View.VISIBLE);
-                                save_file_button.setEnabled(true);
+                                    trigger.setTextSize(18);
+                                    trigger.setText("切换到 My Application 删除后拷贝");
+                                    // end video loop
+                                    videoView.stopPlayback();
+                                    videoView.setVisibility(View.GONE);
+                                    // change file extractor button style
+                                    final MaterialButton save_file_button = findViewById(R.id.save_file_button);
+                                    save_file_button.setVisibility(View.VISIBLE);
+                                    save_file_button.setEnabled(true);
 
-                                save_file_button.setOnClickListener(new View.OnClickListener() {
-                                    public void onClick(View v) {
-
-
-                                        File temp_folder = new File(temp_folder_str);
-                                        if (temp_folder.exists() && temp_folder.isDirectory()) {
-                                            DeleteRecursive(temp_folder);
-                                        }
-                                        new File(temp_folder_str).mkdir();
-
-                                        File tar_folder = new File(src_folder_str);
-                                        try {
-                                            unzip(
-                                                    new File(src_folder_str + tar_folder.list()[0]),
-                                                    new File(temp_folder_str)
-                                            );
-                                        } catch (Exception e) {
-                                            Log.d("zip_info", "Unzip ERROR");
-                                            timer_view.setText("ERROR");
-                                            timer_view.setTextColor(Color.RED);
-                                        } finally {
-                                            timer_view.setText(" ");
-                                            save_file_button.setIconResource(R.drawable.ic_file_download_black_24dp);
-                                            save_file_button.setText("保存文件");
-                                            save_file_button.setOnClickListener(new View.OnClickListener() {
-                                                public void onClick(View v) {
-                                                    String unzipped_folder_str = temp_folder_str + "thplog/";
-                                                    File unzipped_folder = new File(unzipped_folder_str);
-
-                                                    if (currTabPos == 2 || currTabPos == 3) {
-                                                        int max_size_index = 0;
-                                                        File max_size_file = new File(unzipped_folder_str + unzipped_folder.list()[0]);
-                                                        Long max_size = max_size_file.length();
-                                                        for (int i = 1; i <= unzipped_folder.list().length - 1; i++) {
-                                                            File curr_file = new File(unzipped_folder_str + unzipped_folder.list()[i]);
-                                                            Long curr_size = curr_file.length();
-                                                            if (curr_size > max_size) {
-                                                                max_size = curr_size;
-                                                                max_size_index = i;
-                                                            }
-                                                        }
-                                                        src_file_dir_str = temp_folder_str + "thplog/" + unzipped_folder.list()[max_size_index];
+                                    save_file_button.setOnClickListener(new View.OnClickListener() {
+                                        public void onClick(View v) {
 
 
-                                                    } else {
+                                            File temp_folder = new File(temp_folder_str);
+                                            if (temp_folder.exists() && temp_folder.isDirectory()) {
+                                                DeleteRecursive(temp_folder);
+                                            }
+                                            new File(temp_folder_str).mkdir();
+
+                                            File tar_folder = new File(src_folder_str);
+                                            try {
+                                                unzip(
+                                                        new File(src_folder_str + tar_folder.list()[0]),
+                                                        new File(temp_folder_str)
+                                                );
+                                            } catch (Exception e) {
+                                                Log.d("zip_info", "Unzip ERROR");
+                                                timerView.setText("ERROR");
+                                                timerView.setTextColor(Color.RED);
+                                            } finally {
+                                                timerView.setText(" ");
+                                                save_file_button.setIconResource(R.drawable.ic_file_download_black_24dp);
+                                                save_file_button.setText("保存文件");
+                                                save_file_button.setOnClickListener(new View.OnClickListener() {
+                                                    public void onClick(View v) {
+                                                        String unzipped_folder_str = temp_folder_str + "thplog/";
+                                                        File unzipped_folder = new File(unzipped_folder_str);
+
                                                         String[] unzipped_files = unzipped_folder.list();
                                                         for (String temp : unzipped_files) {
-                                                            if (new File(unzipped_folder, temp).length() <= 1.8 * 1024 * 1024) {
+                                                            if (new File(unzipped_folder, temp).length() <= 0) {
                                                                 new File(unzipped_folder, temp).delete();
                                                             }
                                                         }
                                                         src_file_dir_str = temp_folder_str + "thplog/";
 
-                                                    }
+                                                        try {
 
-                                                    try {
-                                                        if (currTabPos == 2 || currTabPos == 3) {
-                                                            copy_file(
-                                                                    new File(src_file_dir_str),
-                                                                    new File(dst_file_dir_str)
-                                                            );
-                                                        } else {
                                                             copy_directory(
                                                                     new File(src_file_dir_str),
                                                                     new File(dst_file_dir_str)
                                                             );
-                                                        }
-                                                        save_file_button.setEnabled(false);
-                                                        save_file_button.setVisibility(View.INVISIBLE);
-                                                        fab.setEnabled(true);
-                                                        fab.setVisibility(View.VISIBLE);
-                                                        timer_view.setTextSize(30);
-                                                        save_file_button.setIconResource(R.drawable.ic_done_all_black_24dp);
-                                                        save_file_button.setText("文件已保存");
+                                                            File f = new File(dst_file_dir_str2);
+                                                            String s = "";
+                                                            for (int m:modeNums){
+                                                                s+=m;
+                                                            }
+                                                            write(f,s);
+                                                            countIndex = 0;
+                                                            save_file_button.setEnabled(false);
+                                                            save_file_button.setVisibility(View.INVISIBLE);
+                                                            fab.setEnabled(true);
+                                                            fab.setVisibility(View.VISIBLE);
+                                                            trigger.setTextSize(30);
+                                                            save_file_button.setIconResource(R.drawable.ic_done_all_black_24dp);
+                                                            save_file_button.setText("文件已保存");
 
-                                                        if (dst_file_folder_dir.list().length == 10) {
+                                                            if (dst_file_folder_dir.list().length == Integer.parseInt(numOft)) {
 //                                                            File new_folder = new File(dst_folder_str + current_date + "_" + exp_info + "_" + device_sc);
 //                                                            dst_file_folder_dir.renameTo(new_folder);
 
-                                                            @SuppressLint("InflateParams") final View pop_up_notification = layoutInflater.inflate(R.layout.pop_up_notification, null);
-                                                            //instantiate popup window
-                                                            popup_window = new PopupWindow(pop_up_notification, LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-                                                            popup_window.showAtLocation(main_activity_layout, Gravity.CENTER, 0, 0);
-                                                            popup_window.setFocusable(true);
-                                                            popup_window.update();
+                                                                @SuppressLint("InflateParams") final View pop_up_notification = layoutInflater.inflate(R.layout.pop_up_notification, null);
+                                                                //instantiate popup window
+                                                                popup_window = new PopupWindow(pop_up_notification, LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                                                                popup_window.showAtLocation(main_activity_layout, Gravity.CENTER, 0, 0);
+                                                                popup_window.setFocusable(true);
+                                                                popup_window.update();
 
-                                                            Button close_pop_up_button = pop_up_notification.findViewById(R.id.close_pop_up_button);
-                                                            close_pop_up_button.setOnClickListener(new View.OnClickListener() {
-                                                                @Override
-                                                                public void onClick(View v) {
-                                                                    popup_window.dismiss();
-                                                                }
-                                                            });
+                                                                Button close_pop_up_button = pop_up_notification.findViewById(R.id.close_pop_up_button);
+                                                                close_pop_up_button.setOnClickListener(new View.OnClickListener() {
+                                                                    @Override
+                                                                    public void onClick(View v) {
+                                                                        popup_window.dismiss();
+                                                                    }
+                                                                });
+                                                            }
+                                                            trigger.setTextColor(Color.WHITE);
+
+                                                        } catch (IOException e) {
+                                                            trigger.setText("保存失败");
+                                                            e.printStackTrace();
+                                                        } finally {
+
+                                                            trigger.setText("保存成功");
+                                                            videoView.setVisibility(View.VISIBLE);
+                                                            videoView.seekTo(0);
+                                                            DeleteRecursive(new File(temp_folder_str));
+
                                                         }
-
-
-                                                    } catch (IOException e) {
-                                                        timer_view.setText("保存失败");
-                                                        e.printStackTrace();
-                                                    } finally {
-                                                        timer_view.setText("保存成功");
-                                                        videoview.setVisibility(View.VISIBLE);
-                                                        videoview.seekTo(0);
-                                                        DeleteRecursive(new File(temp_folder_str));
                                                     }
-                                                }
-                                            });
+                                                });
+                                            }
                                         }
-                                    }
-                                });
+                                    });
+
+                                }
                             }
+
                         };
+
+
+
+
 
 
                         trigger.setOnTouchListener(new View.OnTouchListener() {
                             @Override
-                            public boolean onTouch(View v, MotionEvent event){
+                            public boolean onTouch(View v, MotionEvent event) {
                                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                                    trigger.setTextColor(Color.BLACK);
                                     Log.d("OnTouch", "arch action down");
                                     //start timer
-                                    if(!m_isCollecting){
+                                    if (!m_isCollecting && countIndex < 25) {
                                         SendCmd(0);//0 start  1 stop
-                                        m_countDownTimer.start();
+                                        m_countDownTimer2.start();
                                         m_isCollecting = true;
                                     }
 
-
-
-                                } else if (event.getAction() == MotionEvent.ACTION_UP){
-                                    Log.d("OnTouch", "arch action up");
-                                    //reset timer
-                                    if ((currTabPos == 2 || currTabPos == 3) && m_isCollecting){
-                                        SendCmd(1);
-                                        m_countDownTimer.cancel();
-                                        timer_view.setText("Remain: " + exp_time + "s");
+                                    if (countIndex >= 25){
                                         m_isCollecting = false;
                                     }
 
@@ -593,11 +766,14 @@ public class MainActivity extends AppCompatActivity {
 
 
 
-//                        };
+
 
                     }
                 });
+
+
             }
+
         });
     }
 

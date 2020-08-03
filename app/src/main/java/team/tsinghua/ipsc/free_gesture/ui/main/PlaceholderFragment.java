@@ -9,6 +9,7 @@ import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProviders;
 
+
 import team.tsinghua.ipsc.free_gesture.R;
 
 /**
@@ -43,7 +44,7 @@ public class PlaceholderFragment extends Fragment {
     public View onCreateView(
             @NonNull LayoutInflater inflater, ViewGroup container,
             Bundle savedInstanceState) {
-        View root = inflater.inflate(R.layout.touch_layout, container, false);
+        View root = inflater.inflate(R.layout.exp_layout, container, false);
         return root;
     }
 }

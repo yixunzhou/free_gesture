@@ -8,12 +8,9 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentPagerAdapter;
 
-import team.tsinghua.ipsc.free_gesture.mode.SlideLRFragment;
-import team.tsinghua.ipsc.free_gesture.mode.ZoomInFragment;
 import team.tsinghua.ipsc.free_gesture.R;
-import team.tsinghua.ipsc.free_gesture.mode.SlideUDFragment;
-import team.tsinghua.ipsc.free_gesture.mode.TouchFragment;
-import team.tsinghua.ipsc.free_gesture.mode.ZoomOutFragment;
+import team.tsinghua.ipsc.free_gesture.mode.ExpFragment;
+
 
 /**
  * A [FragmentPagerAdapter] that returns a fragment corresponding to
@@ -22,10 +19,9 @@ import team.tsinghua.ipsc.free_gesture.mode.ZoomOutFragment;
 public class SectionsPagerAdapter extends FragmentPagerAdapter {
 
     @StringRes
-    private static final int[] TAB_TITLES = new int[]{R.string.tab_text_1, R.string.tab_text_12,
-                            R.string.tab_text_2, R.string.tab_text_22, R.string.tab_text_3};
+    private static final int[] TAB_TITLES = new int[]{R.string.tab_text_1};
     private final Context mContext;
-    private final int numOfMode = 5;
+    private final int numOfMode = 1;
 
     public SectionsPagerAdapter(Context context, FragmentManager fm) {
         super(fm);
@@ -40,19 +36,9 @@ public class SectionsPagerAdapter extends FragmentPagerAdapter {
         Fragment fragment = null;
         switch (position) {
             case 0:
-                fragment = new ZoomInFragment();
+                fragment = new ExpFragment();
                 break;
-            case 1:
-                fragment = new ZoomOutFragment();
-                break;
-            case 2:
-                fragment = new SlideLRFragment();
-                break;
-            case 3:
-                fragment = new SlideUDFragment();
-                break;
-            case 4:
-                fragment = new TouchFragment();
+
         }
         return fragment;
     }

@@ -1,11 +1,7 @@
 <resources>
-    <string name="app_name">free_gesture</string>
-    <string name="in_app_title">Signal collecting app\nFREE GESTURE</string>
-    <string name="tab_text_1">ZoomIn</string>
-    <string name="tab_text_12">ZoomOut</string>
-    <string name="tab_text_2">SlideLR</string>
-    <string name="tab_text_22">SlideUD</string>
-    <string name="tab_text_3">Touch</string>
-    <string name="timer_info_1">Remain: </string>
-    <string name="timer_info_2">s</string>
+    <string name="app_name">FreeGesture</string>
+    <string name="in_app_title">FREE GESTURE</string>
+    <string name="tab_text_1"> </string>
+    <string name="timer_info_1">剩余: </string>
+    <string name="timer_info_2">秒</string>
 </resources>

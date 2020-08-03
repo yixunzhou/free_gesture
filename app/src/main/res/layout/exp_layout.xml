@@ -6,48 +6,60 @@
 
 
     <VideoView
-        android:id="@+id/TouchVideo"
+        android:id="@+id/expVideo"
         android:layout_width="100dp"
         android:layout_height="100dp"
         android:gravity="start"
-        app:srcCompat="@raw/touch" />
+        app:srcCompat="@raw/cover" />
 
     <TextView
-        android:id="@+id/touch_mode"
+        android:id="@+id/expMode"
         android:layout_width="wrap_content"
         android:layout_height="40dp"
-        android:layout_toEndOf="@id/TouchVideo"
+        android:layout_toEndOf="@id/expVideo"
         android:background="#000"
         android:gravity="center"
         android:paddingStart="0dp"
         android:paddingEnd="200dp"
-        android:text="Mode: Touch"
+        android:text="当前模式："
         android:textColor="#000"
         android:textSize="12sp"
         android:textStyle="bold" />
 
     <TextView
-        android:id="@+id/touch_timer"
+        android:id="@+id/expTimer"
         android:layout_width="wrap_content"
         android:layout_height="60dp"
         android:background="#000"
         android:gravity="center"
-        android:layout_toEndOf="@id/TouchVideo"
-        android:layout_below="@id/touch_mode"
+        android:layout_toEndOf="@id/expVideo"
+        android:layout_below="@id/expMode"
         android:paddingStart="0dp"
-        android:paddingEnd="200dp"
-        android:text="Remain: 180s"
+        android:text="剩余时间: 2秒"
+        android:textColor="#000"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+    <TextView
+        android:id="@+id/counter"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:background="#000"
+        android:gravity="center"
+        android:layout_toEndOf="@id/expTimer"
+        android:layout_below="@id/expMode"
+        android:paddingStart="0dp"
+        android:text="已完成0个模式，共150个模式"
         android:textColor="#000"
         android:textSize="12sp"
         android:textStyle="bold" />
 
-    <VideoView
-        android:id="@+id/TouchCollection"
+    <TextView
+        android:id="@+id/expDataCollectionArea"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/touch_timer"
-        android:gravity="start"
-        />
+        android:layout_below="@id/expTimer"
+        android:gravity="center"
+         />
 
 
 

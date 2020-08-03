@@ -36,7 +36,7 @@
         android:layout_below="@id/zoom_in_mode"
         android:paddingStart="0dp"
         android:paddingEnd="200dp"
-        android:text="Remain: 180s"
+        android:text="Remain: 300s"
         android:textColor="#000"
         android:textSize="12sp"
         android:textStyle="bold" />
