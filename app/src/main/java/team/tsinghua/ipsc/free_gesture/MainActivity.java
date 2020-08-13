@@ -1,16 +1,13 @@
 package team.tsinghua.ipsc.free_gesture;
 
-
 import android.Manifest;
 import android.annotation.SuppressLint;
-
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.net.Uri;
-import android.os.Handler;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -23,20 +20,15 @@ import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.VideoView;
-
-
 import team.tsinghua.ipsc.free_gesture.ui.main.SectionsPagerAdapter;
-
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
-
 import androidx.annotation.NonNull;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.app.ActivityCompat;
 import androidx.viewpager.widget.ViewPager;
 import androidx.appcompat.app.AppCompatActivity;
-
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -49,11 +41,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -74,7 +63,6 @@ public class MainActivity extends AppCompatActivity {
     private Uri uri;
     private PopupWindow popup_window;
     private String exp_info;
-    private int exp_info_int;
     private int[] modeNums, modeNums2;
     private int modeNum;
     private String current_date;
@@ -86,7 +74,6 @@ public class MainActivity extends AppCompatActivity {
 
     private String src_file_dir_str;
     private String dst_file_dir_str, dst_file_dir_str2;
-    private DatagramSocket m_udpClient;
 
     private static String[] PERMISSIONS_STORAGE = {
             Manifest.permission.READ_EXTERNAL_STORAGE,
@@ -324,7 +311,6 @@ public class MainActivity extends AppCompatActivity {
                         @SuppressLint("InflateParams") final View expView = layoutInflater.inflate(R.layout.exp_layout, null);
                         EditText exp_info_input = pop_up_view.findViewById(R.id.exp_info_input);
                         exp_info = exp_info_input.getText().toString();
-                        exp_info_int = Integer.parseInt(exp_info);
                         Log.d("exp_info", exp_info);
                         viewPager.setBackgroundColor(Color.WHITE);
 
@@ -342,16 +328,6 @@ public class MainActivity extends AppCompatActivity {
                         timerView.setBackgroundColor(0x00000);
                         modeView.setBackgroundColor(0x00000);
                         counterView.setBackgroundColor(0x00000);
-                        // init udp socket
-                        try {
-                            m_udpClient = new DatagramSocket();
-                            Log.d("socket_info", "create socket success");
-                        } catch (SocketException e) {
-                            Log.d("socket_info", "can not create socket");
-                            e.printStackTrace();
-                        }
-
-                        m_sendAddress = "192.168.31.170";
 
                         final String src_folder_str = "/storage/emulated/0/com.huawei.lcagent/";
                         final String temp_folder_str = "/storage/emulated/0/raw_unzipped/";
@@ -363,7 +339,6 @@ public class MainActivity extends AppCompatActivity {
                         }
                         device_sc = new File("/storage/emulated/0/dev_info/").list()[0];
                         m_sendAddress = new File("/storage/emulated/0/NetConfig/").list()[0];
-                        Log.d("send_address", m_sendAddress);
 
                         SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd", Locale.getDefault());
                         current_date = sdf.format(new Date());
@@ -579,7 +554,7 @@ public class MainActivity extends AppCompatActivity {
                                                             File f = new File(dst_file_dir_str2);
                                                             String s = "";
                                                             for (int m:modeNums){
-                                                                s+=m;
+                                                                s += m;
                                                             }
                                                             write(f,s);
                                                             countIndex = 0;
@@ -592,8 +567,6 @@ public class MainActivity extends AppCompatActivity {
                                                             save_file_button.setText("文件已保存");
 
                                                             if (dst_file_folder_dir.list().length == Integer.parseInt(numOft)) {
-//                                                            File new_folder = new File(dst_folder_str + current_date + "_" + exp_info + "_" + device_sc);
-//                                                            dst_file_folder_dir.renameTo(new_folder);
 
                                                                 @SuppressLint("InflateParams") final View pop_up_notification = layoutInflater.inflate(R.layout.pop_up_notification, null);
                                                                 //instantiate popup window
