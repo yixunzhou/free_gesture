@@ -63,7 +63,7 @@ import java.util.zip.ZipInputStream;
 
 
 public class MainActivity extends AppCompatActivity {
-    private int exp_time = 300, taskTime = 3;  // seconds
+    private int taskTime = 3;  // seconds
     private final int roundTotalNum = 25;
     private final int taskNum = 6;
     private int countIndex = 0;
@@ -79,7 +79,6 @@ public class MainActivity extends AppCompatActivity {
     private int modeNum;
     private String current_date;
     private String device_sc;
-    private String m_groupNumber;
     private String m_sendAddress;
     private boolean m_isCollecting;
     private String[] args;
@@ -87,7 +86,6 @@ public class MainActivity extends AppCompatActivity {
 
     private String src_file_dir_str;
     private String dst_file_dir_str, dst_file_dir_str2;
-    private int currTabPos; // position # of the tab
     private DatagramSocket m_udpClient;
 
     private static String[] PERMISSIONS_STORAGE = {
@@ -97,9 +95,7 @@ public class MainActivity extends AppCompatActivity {
     //请求状态码
     private static int REQUEST_PERMISSION_CODE = 1;
 
-    private CountDownTimer m_countDownTimer, m_countDownTimer2;
-
-    private OutputStream os = null;
+    private CountDownTimer m_countDownTimer2;
     private BufferedWriter writer = null;
     public void write(File file, String txt){
         try {
@@ -212,42 +208,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    void SendCmd(final int cmd){   //0:send start cmd  1: send stop cmd
-        new Thread(new Runnable(){
-            public void run() {
-                try {
-                    Log.d("touch_info", "on action down");
-                    byte[] sendBuf = new byte[8];
-                    sendBuf[0] = Byte.parseByte(device_sc);//dev number
-                    if(cmd == 0){
-                        sendBuf[1] = 0x01;//0x01:start, 0x02:stop
-                    }
-                    else{
-                        sendBuf[1] = 0x02;//0x01:start, 0x02:stop
-                    }
-                    sendBuf[2] = (byte)((exp_info_int >> 24) & 0xff);//usr number
-                    sendBuf[3] = (byte)((exp_info_int >> 16) & 0xff);
-                    sendBuf[4] = (byte)((exp_info_int >>  8) & 0xff);
-                    sendBuf[5] = (byte)((exp_info_int & 0xff));
-//                    sendBuf[2] = Byte.parseByte(exp_info);//usr number
-
-                    sendBuf[6] = (byte)(((currTabPos + 1)) & 0xFF) ; //0x00:hold  0x01:arch  0x02:slide  0x03:touch
-                    sendBuf[7] = Byte.parseByte(m_groupNumber);
-//                                                sendBuf[4] = 0x01;
-                    int port = 4772;
-                    DatagramPacket sendPacket = new DatagramPacket(sendBuf, sendBuf.length, InetAddress.getByName(m_sendAddress), port);
-                    m_udpClient.send(sendPacket);
-                    Log.d("touch_info", "on action down");
-                } catch (UnknownHostException e) {
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }).start();
-    }
-
-
     public static int[] indexGenerator(int min, int max, int n){
         if (n > (max - min + 1) || max < min) {
             return null;
@@ -299,6 +259,7 @@ public class MainActivity extends AppCompatActivity {
 
         return args;
     }
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -419,141 +380,78 @@ public class MainActivity extends AppCompatActivity {
                         if (!mode_seq_file.exists()) mode_seq_file.mkdir();
 
 
-                        if (modeNum < 6) {
-                            if (mode_seq_file.list().length == 0) {
-                                dst_file_dir_str2 = mode_seq + "/" + current_date + "_" + exp_info + "_01.txt";
-
-                                m_groupNumber = "1";
-                            } else {
-                                String[] file_list = new File(mode_seq).list();
-                                int this_num = 0;
-                                String this_name;
-                                for (int i = 0; i < 10; i++) {
-                                    String file_num = "0" + (i + 1);
-                                    this_num = i + 1;
-                                    boolean find_file = false;
-                                    for (int j = 0; j < file_list.length; j++) {
-                                        String file_name = file_list[j].split("_")[2].split("\\.")[0];
-                                        if (file_name.equals(file_num)) {
-                                            find_file = true;
-                                            break;
-                                        }
-                                    }
-                                    if (!find_file)
-                                        break;
-                                }
-                                /***********************/
-                                if (this_num <= 9) {
-                                    this_name = "0" + this_num;
-                                } else if(this_num <= Integer.parseInt(numOft)){
-                                    this_name = String.valueOf(this_num);
-                                } else{
-                                    this_name = numOft;
-                                }
-                                m_groupNumber = this_name;
-                                dst_file_dir_str2 = mode_seq + "/" + current_date + "_" + exp_info + "_" + this_name + ".txt";
-                            }
+                        if (mode_seq_file.list().length == 0) {
+                            dst_file_dir_str2 = mode_seq + "/" + current_date + "_" + exp_info + "_01.txt";
                         } else {
-                            if (dst_file_folder_dir.list().length == 0) {
-                                dst_file_dir_str2 = mode_seq + "/" + current_date + "_" + exp_info + "_01";
-                                m_groupNumber = "1";
-                            } else {
-                                String[] file_list = new File(mode_seq).list();
-                                int this_num = 0;
-                                String this_name;
-                                for (int i = 0; i < 10; i++) {
-                                    String file_num = "0" + (i + 1);
-                                    this_num = i + 1;
-                                    boolean find_file = false;
-                                    for (int j = 0; j < file_list.length; j++) {
-                                        String file_name = file_list[j].split("_")[2];
-                                        if (file_name.equals(file_num)) {
-                                            find_file = true;
-                                            break;
-                                        }
-                                    }
-                                    if (!find_file)
+                            String[] file_list = new File(mode_seq).list();
+                            int this_num = 0;
+                            String this_name;
+                            for (int i = 0; i < Integer.parseInt(numOft); i++) {
+                                String file_num;
+                                if (i < 9) {
+                                    file_num = "0" + (i + 1);
+                                }else{
+                                    file_num = String.valueOf(i+1);
+                                }
+                                this_num = i + 1;
+                                boolean find_file = false;
+                                for (int j = 0; j < file_list.length; j++) {
+                                    String file_name = file_list[j].split("_")[2].split("\\.")[0];
+                                    if (file_name.equals(file_num)) {
+                                        find_file = true;
                                         break;
+                                    }
                                 }
-                                if (this_num <= 9) {
-                                    this_name = "0" + this_num;
-                                } else if(this_num <= Integer.parseInt(numOft)){
-                                    this_name = String.valueOf(this_num);
-                                } else{
-                                    this_name = numOft;
-                                }
-                                m_groupNumber = this_name;
-                                dst_file_dir_str2 = mode_seq + "/" + current_date + "_" + exp_info + "_" + this_name;
+                                if (!find_file)
+                                    break;
                             }
+                            /***********************/
+                            if (this_num <= 9) {
+                                this_name = "0" + this_num;
+                            } else if(this_num <= Integer.parseInt(numOft)){
+                                this_name = String.valueOf(this_num);
+                            } else{
+                                this_name = numOft;
+                            }
+                            dst_file_dir_str2 = mode_seq + "/" + current_date + "_" + exp_info + "_" + this_name + ".txt";
                         }
 
 
-                        if (modeNum < 6) {
-                            if (dst_file_folder_dir.list().length == 0) {
-                                dst_file_dir_str = dst_file_folder_dir_str + "/" + current_date + "_" + exp_info + "_01.thplog";
+                        if (dst_file_folder_dir.list().length == 0) {
+                            dst_file_dir_str = dst_file_folder_dir_str + "/" + current_date + "_" + exp_info + "_01";
 
-                                m_groupNumber = "1";
-                            } else {
-                                String[] file_list = new File(dst_file_folder_dir_str).list();
-                                int this_num = 0;
-                                String this_name;
-                                for (int i = 0; i < 10; i++) {
-                                    String file_num = "0" + (i + 1);
-                                    this_num = i + 1;
-                                    boolean find_file = false;
-                                    for (int j = 0; j < file_list.length; j++) {
-                                        String file_name = file_list[j].split("_")[2].split("\\.")[0];
-                                        if (file_name.equals(file_num)) {
-                                            find_file = true;
-                                            break;
-                                        }
-                                    }
-                                    if (!find_file)
-                                        break;
-                                }
-                                /***********************/
-                                if (this_num <= 9) {
-                                    this_name = "0" + this_num;
-                                } else if(this_num <= Integer.parseInt(numOft)){
-                                    this_name = String.valueOf(this_num);
-                                } else{
-                                    this_name = numOft;
-                                }
-                                m_groupNumber = this_name;
-                                dst_file_dir_str = dst_file_folder_dir_str + "/" + current_date + "_" + exp_info + "_" + this_name + ".thplog";
-                            }
                         } else {
-                            if (dst_file_folder_dir.list().length == 0) {
-                                dst_file_dir_str = dst_file_folder_dir_str + "/" + current_date + "_" + exp_info + "_01";
-                                m_groupNumber = "1";
-                            } else {
-                                String[] file_list = new File(dst_file_folder_dir_str).list();
-                                int this_num = 0;
-                                String this_name;
-                                for (int i = 0; i < 10; i++) {
-                                    String file_num = "0" + (i + 1);
-                                    this_num = i + 1;
-                                    boolean find_file = false;
-                                    for (int j = 0; j < file_list.length; j++) {
-                                        String file_name = file_list[j].split("_")[2];
-                                        if (file_name.equals(file_num)) {
-                                            find_file = true;
-                                            break;
-                                        }
-                                    }
-                                    if (!find_file)
+                            String[] file_list = new File(dst_file_folder_dir_str).list();
+                            int this_num = 0;
+                            String this_name;
+                            for (int i = 0; i < Integer.parseInt(numOft); i++) {
+                                String file_num;
+                                if (i < 9) {
+                                    file_num = "0" + (i + 1);
+                                }else{
+                                    file_num = String.valueOf(i+1);
+                                }
+                                this_num = i + 1;
+                                boolean find_file = false;
+                                for (int j = 0; j < file_list.length; j++) {
+                                    String file_name = file_list[j].split("_")[2].split("\\.")[0];
+                                    if (file_name.equals(file_num)) {
+                                        find_file = true;
                                         break;
+                                    }
                                 }
-                                if (this_num <= 9) {
-                                    this_name = "0" + this_num;
-                                } else if(this_num <= Integer.parseInt(numOft)){
-                                    this_name = String.valueOf(this_num);
-                                } else{
-                                    this_name = numOft;
-                                }
-                                m_groupNumber = this_name;
-                                dst_file_dir_str = dst_file_folder_dir_str + "/" + current_date + "_" + exp_info + "_" + this_name;
+                                if (!find_file)
+                                    break;
                             }
+                            /***********************/
+                            if (this_num <= 9) {
+                                this_name = "0" + this_num;
+                            } else if(this_num < Integer.parseInt(numOft)){
+                                this_name = String.valueOf(this_num);
+                            } else{
+                                this_name = numOft;
+                            }
+                            dst_file_dir_str = dst_file_folder_dir_str + "/" + current_date + "_" + exp_info + "_" + this_name;
                         }
 
 
@@ -621,7 +519,6 @@ public class MainActivity extends AppCompatActivity {
                                     this.start();
                                 }else{
                                     Log.d(String.valueOf(countIndex), "index");
-                                    SendCmd(1);
                                     viewPager.setBackgroundColor(Color.BLACK);
                                     m_isCollecting = false;
                                     trigger.setTextColor(Color.WHITE);
@@ -750,7 +647,6 @@ public class MainActivity extends AppCompatActivity {
                                     Log.d("OnTouch", "arch action down");
                                     //start timer
                                     if (!m_isCollecting && countIndex < 25) {
-                                        SendCmd(0);//0 start  1 stop
                                         m_countDownTimer2.start();
                                         m_isCollecting = true;
                                     }
@@ -776,6 +672,7 @@ public class MainActivity extends AppCompatActivity {
 
         });
     }
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
