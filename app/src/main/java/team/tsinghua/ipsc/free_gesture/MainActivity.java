@@ -41,8 +41,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.net.DatagramSocket;
-import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -82,7 +80,7 @@ public class MainActivity extends AppCompatActivity {
     //请求状态码
     private static int REQUEST_PERMISSION_CODE = 1;
 
-    private CountDownTimer m_countDownTimer2;
+    private CountDownTimer m_countDownTimer;
     private BufferedWriter writer = null;
     public void write(File file, String txt){
         try {
@@ -124,20 +122,6 @@ public class MainActivity extends AppCompatActivity {
             }
         } finally {
             zis.close();
-        }
-    }
-
-
-    public static void copy_file(File src, File dst) throws IOException {
-        try (InputStream in = new FileInputStream(src)) {
-            try (OutputStream out = new FileOutputStream(dst)) {
-                // Transfer bytes from in to out
-                byte[] buf = new byte[1024];
-                int len;
-                while ((len = in.read(buf)) > 0) {
-                    out.write(buf, 0, len);
-                }
-            }
         }
     }
 
@@ -433,14 +417,14 @@ public class MainActivity extends AppCompatActivity {
                         modeNums = indexGenerator(0, 6, taskNum);
                         modeNums2 = new int[roundTotalNum*modeNums.length];
                         for (int k=0;k<roundTotalNum;k++){
-                            System.arraycopy(modeNums, 0, modeNums2, 6 * k, modeNums.length);
+                            System.arraycopy(modeNums, 0, modeNums2, taskNum * k, modeNums.length);
                         }
                         timerView.setVisibility(View.VISIBLE);
                         timerView.setBackgroundColor(0x00000);
                         counterView.setVisibility(View.VISIBLE);
                         counterView.setBackgroundColor(0x00000);
                         modeView.setBackgroundColor(0x00000);
-                        m_countDownTimer2 = new CountDownTimer(taskTime * 1000, 1000) {
+                        m_countDownTimer = new CountDownTimer(taskTime * 1000, 1000) {
                             @Override
                             public void onTick(long l) {
 
@@ -619,12 +603,12 @@ public class MainActivity extends AppCompatActivity {
                                     trigger.setTextColor(Color.BLACK);
                                     Log.d("OnTouch", "arch action down");
                                     //start timer
-                                    if (!m_isCollecting && countIndex < 25) {
-                                        m_countDownTimer2.start();
+                                    if (!m_isCollecting && countIndex < roundTotalNum) {
+                                        m_countDownTimer.start();
                                         m_isCollecting = true;
                                     }
 
-                                    if (countIndex >= 25){
+                                    if (countIndex >= roundTotalNum){
                                         m_isCollecting = false;
                                     }
 
