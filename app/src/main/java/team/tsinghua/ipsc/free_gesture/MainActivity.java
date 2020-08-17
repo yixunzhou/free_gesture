@@ -29,6 +29,9 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.app.ActivityCompat;
 import androidx.viewpager.widget.ViewPager;
 import androidx.appcompat.app.AppCompatActivity;
+
+import org.apache.commons.io.FileUtils;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -50,8 +53,8 @@ import java.util.zip.ZipInputStream;
 
 
 public class MainActivity extends AppCompatActivity {
-    private int taskTime = 3;  // seconds
-    private final int roundTotalNum = 25;
+    private int taskTime;  // seconds
+    private int roundTotalNum;
     private final int taskNum = 6;
     private int countIndex = 0;
     private VideoView videoView; // demo video
@@ -65,23 +68,25 @@ public class MainActivity extends AppCompatActivity {
     private int modeNum;
     private String current_date;
     private String device_sc;
-    private String m_sendAddress;
     private boolean m_isCollecting;
     private String[] args;
-    private String numOft;
-
+    private int numOft;
+    private String time_start, time_end;
+    private float file_limit;
+    private int action_times;
     private String src_file_dir_str;
     private String dst_file_dir_str, dst_file_dir_str2;
-
+    SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
     private static String[] PERMISSIONS_STORAGE = {
             Manifest.permission.READ_EXTERNAL_STORAGE,
             Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
     //请求状态码
     private static int REQUEST_PERMISSION_CODE = 1;
-
     private CountDownTimer m_countDownTimer;
     private BufferedWriter writer = null;
+
+
     public void write(File file, String txt){
         try {
             writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file, false), StandardCharsets.UTF_8));
@@ -232,6 +237,26 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    public static int fileFilter(long start_t, long end_t, String folder_path){
+
+        for (String file_path:new File(folder_path).list()){
+            String f_year = file_path.split("\\.")[0];
+            String f_month = file_path.split("\\.")[1];
+            String f_day = file_path.split("\\.")[2].split("_")[0];
+            String f_hour = file_path.split("\\.")[2].split("_")[1];
+            String f_minute = file_path.split("\\.")[3];
+            String f_second = file_path.split("\\.")[4];
+            String f_time = f_year + f_month + f_day + f_hour + f_minute + f_second;
+            long time = Long.parseLong(f_time);
+
+            if (time < start_t || time > end_t){
+                new File(folder_path + "/" + file_path).delete();
+            }
+        }
+
+        return new File(folder_path).list().length;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -242,10 +267,14 @@ public class MainActivity extends AppCompatActivity {
         }
 
         args = readSettings("/storage/emulated/0/gathered_data2/settings.txt");
-        numOft = args[0];
+        device_sc = args[0].split(":")[1];
+        taskTime = Integer.parseInt(args[1].split(":")[1]);
+        roundTotalNum = Integer.parseInt(args[2].split(":")[1]);
+        action_times = Integer.parseInt(args[3].split(":")[1]);
+        numOft = Integer.parseInt(args[4].split(":")[1]);
+        file_limit = Float.parseFloat(args[5].split(":")[1])*roundTotalNum*taskNum*action_times;
 
         SectionsPagerAdapter sectionsPagerAdapter = new SectionsPagerAdapter(this, getSupportFragmentManager());
-
         final ViewPager viewPager = findViewById(R.id.view_pager);
         viewPager.setAdapter(sectionsPagerAdapter);
         viewPager.beginFakeDrag();
@@ -298,7 +327,7 @@ public class MainActivity extends AppCompatActivity {
                         Log.d("exp_info", exp_info);
                         viewPager.setBackgroundColor(Color.WHITE);
 
-                        uri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.zoom_in);
+                        uri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.cover);
                         videoView.setVideoURI(uri);
                         videoView.start();
                         videoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
@@ -321,11 +350,9 @@ public class MainActivity extends AppCompatActivity {
                         if (!dst_folder.exists()) {
                             dst_folder.mkdir();
                         }
-                        device_sc = new File("/storage/emulated/0/dev_info/").list()[0];
-                        m_sendAddress = new File("/storage/emulated/0/NetConfig/").list()[0];
-
                         SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd", Locale.getDefault());
                         current_date = sdf.format(new Date());
+
                         String dst_file_folder_dir_str = dst_folder_str + exp_info + "_" + device_sc;
                         Log.d("dst folder dir str", dst_file_folder_dir_str);
                         final File dst_file_folder_dir = new File(dst_file_folder_dir_str);
@@ -345,7 +372,7 @@ public class MainActivity extends AppCompatActivity {
                             String[] file_list = new File(mode_seq).list();
                             int this_num = 0;
                             String this_name;
-                            for (int i = 0; i < Integer.parseInt(numOft); i++) {
+                            for (int i = 0; i < numOft; i++) {
                                 String file_num;
                                 if (i < 9) {
                                     file_num = "0" + (i + 1);
@@ -367,23 +394,24 @@ public class MainActivity extends AppCompatActivity {
                             /***********************/
                             if (this_num <= 9) {
                                 this_name = "0" + this_num;
-                            } else if(this_num <= Integer.parseInt(numOft)){
+                            } else if(this_num <= numOft){
                                 this_name = String.valueOf(this_num);
                             } else{
-                                this_name = numOft;
+                                this_name = String.valueOf(numOft);
                             }
                             dst_file_dir_str2 = mode_seq + "/" + current_date + "_" + exp_info + "_" + this_name + ".txt";
                         }
 
 
                         if (dst_file_folder_dir.list().length == 0) {
+
                             dst_file_dir_str = dst_file_folder_dir_str + "/" + current_date + "_" + exp_info + "_01";
 
                         } else {
                             String[] file_list = new File(dst_file_folder_dir_str).list();
                             int this_num = 0;
                             String this_name;
-                            for (int i = 0; i < Integer.parseInt(numOft); i++) {
+                            for (int i = 0; i < numOft; i++) {
                                 String file_num;
                                 if (i < 9) {
                                     file_num = "0" + (i + 1);
@@ -405,10 +433,10 @@ public class MainActivity extends AppCompatActivity {
                             /***********************/
                             if (this_num <= 9) {
                                 this_name = "0" + this_num;
-                            } else if(this_num < Integer.parseInt(numOft)){
+                            } else if(this_num < numOft){
                                 this_name = String.valueOf(this_num);
                             } else{
-                                this_name = numOft;
+                                this_name = String.valueOf(numOft);
                             }
                             dst_file_dir_str = dst_file_folder_dir_str + "/" + current_date + "_" + exp_info + "_" + this_name;
                         }
@@ -424,6 +452,9 @@ public class MainActivity extends AppCompatActivity {
                         counterView.setVisibility(View.VISIBLE);
                         counterView.setBackgroundColor(0x00000);
                         modeView.setBackgroundColor(0x00000);
+                        Date date_start = new Date(System.currentTimeMillis());
+                        time_start = simpleDateFormat.format(date_start);
+                        Log.d(time_start,"!!!");
                         m_countDownTimer = new CountDownTimer(taskTime * 1000, 1000) {
                             @Override
                             public void onTick(long l) {
@@ -481,9 +512,10 @@ public class MainActivity extends AppCompatActivity {
                                     viewPager.setBackgroundColor(Color.BLACK);
                                     m_isCollecting = false;
                                     trigger.setTextColor(Color.WHITE);
-
                                     trigger.setTextSize(18);
                                     trigger.setText("切换到 My Application 删除后拷贝");
+                                    Date date_end = new Date(System.currentTimeMillis());
+                                    time_end = simpleDateFormat.format(date_end);
                                     // end video loop
                                     videoView.stopPlayback();
                                     videoView.setVisibility(View.GONE);
@@ -542,43 +574,55 @@ public class MainActivity extends AppCompatActivity {
                                                             }
                                                             write(f,s);
                                                             countIndex = 0;
-                                                            save_file_button.setEnabled(false);
-                                                            save_file_button.setVisibility(View.INVISIBLE);
-                                                            fab.setEnabled(true);
-                                                            fab.setVisibility(View.VISIBLE);
-                                                            trigger.setTextSize(30);
-                                                            save_file_button.setIconResource(R.drawable.ic_done_all_black_24dp);
-                                                            save_file_button.setText("文件已保存");
 
-                                                            if (dst_file_folder_dir.list().length == Integer.parseInt(numOft)) {
 
-                                                                @SuppressLint("InflateParams") final View pop_up_notification = layoutInflater.inflate(R.layout.pop_up_notification, null);
-                                                                //instantiate popup window
-                                                                popup_window = new PopupWindow(pop_up_notification, LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-                                                                popup_window.showAtLocation(main_activity_layout, Gravity.CENTER, 0, 0);
-                                                                popup_window.setFocusable(true);
-                                                                popup_window.update();
+                                                            if (fileFilter(Long.parseLong(time_start), Long.parseLong(time_end), dst_file_dir_str) >= file_limit){
+                                                                save_file_button.setEnabled(false);
+                                                                save_file_button.setVisibility(View.INVISIBLE);
+                                                                fab.setEnabled(true);
+                                                                fab.setVisibility(View.VISIBLE);
+                                                                trigger.setTextSize(30);
+                                                                save_file_button.setIconResource(R.drawable.ic_done_all_black_24dp);
+                                                                save_file_button.setText("文件已保存");
+                                                                if (dst_file_folder_dir.list().length == numOft) {
 
-                                                                Button close_pop_up_button = pop_up_notification.findViewById(R.id.close_pop_up_button);
-                                                                close_pop_up_button.setOnClickListener(new View.OnClickListener() {
-                                                                    @Override
-                                                                    public void onClick(View v) {
-                                                                        popup_window.dismiss();
-                                                                    }
-                                                                });
+                                                                    @SuppressLint("InflateParams") final View pop_up_notification = layoutInflater.inflate(R.layout.pop_up_notification, null);
+                                                                    //instantiate popup window
+                                                                    popup_window = new PopupWindow(pop_up_notification, LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                                                                    popup_window.showAtLocation(main_activity_layout, Gravity.CENTER, 0, 0);
+                                                                    popup_window.setFocusable(true);
+                                                                    popup_window.update();
+
+                                                                    Button close_pop_up_button = pop_up_notification.findViewById(R.id.close_pop_up_button);
+                                                                    close_pop_up_button.setOnClickListener(new View.OnClickListener() {
+                                                                        @Override
+                                                                        public void onClick(View v) {
+                                                                            popup_window.dismiss();
+                                                                        }
+                                                                    });
+                                                                }
+                                                                trigger.setTextColor(Color.WHITE);
                                                             }
-                                                            trigger.setTextColor(Color.WHITE);
-
                                                         } catch (IOException e) {
                                                             trigger.setText("保存失败");
                                                             e.printStackTrace();
                                                         } finally {
 
-                                                            trigger.setText("保存成功");
-                                                            videoView.setVisibility(View.VISIBLE);
-                                                            videoView.seekTo(0);
-                                                            DeleteRecursive(new File(temp_folder_str));
-
+                                                            if(new File(dst_file_dir_str).list().length >= file_limit) {
+                                                                trigger.setText("保存成功");
+                                                                videoView.setVisibility(View.VISIBLE);
+                                                                videoView.seekTo(0);
+                                                                DeleteRecursive(new File(temp_folder_str));
+                                                            }else{
+                                                                trigger.setText("文件数量未满足要求 请退出程序重新采集");
+                                                                save_file_button.setVisibility(View.INVISIBLE);
+                                                                try {
+                                                                    FileUtils.deleteDirectory(new File(dst_file_dir_str));
+                                                                } catch (IOException e) {
+                                                                    e.printStackTrace();
+                                                                }
+                                                                DeleteRecursive(new File(temp_folder_str));
+                                                            }
                                                         }
                                                     }
                                                 });
