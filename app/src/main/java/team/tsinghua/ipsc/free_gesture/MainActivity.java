@@ -53,7 +53,7 @@ import java.util.zip.ZipInputStream;
 
 
 public class MainActivity extends AppCompatActivity {
-    private int taskTime;  // seconds
+    private float taskTime;  // seconds
     private int roundTotalNum;
     private final int taskNum = 6;
     private int countIndex = 0;
@@ -268,7 +268,7 @@ public class MainActivity extends AppCompatActivity {
 
         args = readSettings("/storage/emulated/0/gathered_data2/settings.txt");
         device_sc = args[0].split(":")[1];
-        taskTime = Integer.parseInt(args[1].split(":")[1]);
+        taskTime = Float.parseFloat(args[1].split(":")[1]);
         roundTotalNum = Integer.parseInt(args[2].split(":")[1]);
         action_times = Integer.parseInt(args[3].split(":")[1]);
         numOft = Integer.parseInt(args[4].split(":")[1]);
@@ -455,7 +455,7 @@ public class MainActivity extends AppCompatActivity {
                         Date date_start = new Date(System.currentTimeMillis());
                         time_start = simpleDateFormat.format(date_start);
                         Log.d(time_start,"!!!");
-                        m_countDownTimer = new CountDownTimer(taskTime * 1000, 1000) {
+                        m_countDownTimer = new CountDownTimer((long) taskTime * 1000, 1000) {
                             @Override
                             public void onTick(long l) {
 
