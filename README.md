@@ -1,6 +1,8 @@
 # free_gesture
+## Description
 An Android application which could collect touch-screen data. Gestures are not limited in some way.
 
+## 软件使用说明
 使用前，
 需在garthered_data2/目录下新建settings.txt文件，存放设置，换行分隔。
 settings.txt示例：
