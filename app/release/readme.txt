@@ -3,9 +3,9 @@
 收集完一次最好重启软件再收集下一次。
 settings.txt示例：
 Devive_num:02
-Single_task_time(seconds):3
+Single_task_time(seconds):1.5
 Task_rounds:25
-Action_times:3
+Action_times:1
 Expriment_rounds:30
 File_limit:0.9
 
